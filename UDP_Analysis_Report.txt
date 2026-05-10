@@ -1,31 +1,31 @@
 ========================================
      UDP LIVE ANALYSIS FINAL REPORT
 ========================================
-Total Records Received: 50
-Final Running Average: 2.51 kWh
+Total Records Received: 51
+Final Running Average: 2.50 kWh
 Highest Power: 4.86 kWh
 Threshold Violations: 9
 Unusual Spikes: 10
 
 Violation Log:
-⚠️ VIOLATION #1: 4.78 kWh at 2023-01-01 01:00:00
-⚠️ VIOLATION #2: 4.40 kWh at 2023-01-01 07:00:00
-⚠️ VIOLATION #3: 4.86 kWh at 2023-01-01 11:00:00
-⚠️ VIOLATION #4: 4.25 kWh at 2023-01-01 12:00:00
-⚠️ VIOLATION #5: 4.03 kWh at 2023-01-02 01:00:00
-⚠️ VIOLATION #6: 4.77 kWh at 2023-01-02 09:00:00
-⚠️ VIOLATION #7: 4.85 kWh at 2023-01-02 10:00:00
-⚠️ VIOLATION #8: 4.14 kWh at 2023-01-02 11:00:00
-⚠️ VIOLATION #9: 4.59 kWh at 2023-01-02 19:00:00
+⚠️ VIOLATION #1: 4.78 kWh from 10.157.20.54:59675 at 2023-01-01 01:00:00
+⚠️ VIOLATION #2: 4.40 kWh from 10.157.20.54:59675 at 2023-01-01 07:00:00
+⚠️ VIOLATION #3: 4.86 kWh from 10.157.20.54:59675 at 2023-01-01 11:00:00
+⚠️ VIOLATION #4: 4.25 kWh from 10.157.20.54:59675 at 2023-01-01 12:00:00
+⚠️ VIOLATION #5: 4.03 kWh from 10.157.20.54:59675 at 2023-01-02 01:00:00
+⚠️ VIOLATION #6: 4.77 kWh from 10.157.20.54:59675 at 2023-01-02 09:00:00
+⚠️ VIOLATION #7: 4.85 kWh from 10.157.20.54:59675 at 2023-01-02 10:00:00
+⚠️ VIOLATION #8: 4.14 kWh from 10.157.20.54:59675 at 2023-01-02 11:00:00
+⚠️ VIOLATION #9: 4.59 kWh from 10.157.20.54:59675 at 2023-01-02 19:00:00
 
 Spike Log:
-⚡ SPIKE #1: 4.78 kWh (from 2.19 kWh) at 2023-01-01 01:00:00
-⚡ SPIKE #2: 4.40 kWh (from 0.76 kWh) at 2023-01-01 07:00:00
-⚡ SPIKE #3: 4.86 kWh (from 0.59 kWh) at 2023-01-01 11:00:00
-⚡ SPIKE #4: 2.81 kWh (from 1.40 kWh) at 2023-01-02 03:00:00
-⚡ SPIKE #5: 3.23 kWh (from 0.71 kWh) at 2023-01-02 06:00:00
-⚡ SPIKE #6: 4.77 kWh (from 0.79 kWh) at 2023-01-02 09:00:00
-⚡ SPIKE #7: 3.58 kWh (from 0.94 kWh) at 2023-01-02 14:00:00
-⚡ SPIKE #8: 2.73 kWh (from 1.05 kWh) at 2023-01-02 17:00:00
-⚡ SPIKE #9: 4.59 kWh (from 0.65 kWh) at 2023-01-02 19:00:00
-⚡ SPIKE #10: 3.48 kWh (from 1.66 kWh) at 2023-01-02 21:00:00
+⚡ SPIKE #1: 4.78 kWh (from 2.19) from 10.157.20.54:59675 at 2023-01-01 01:00:00
+⚡ SPIKE #2: 4.40 kWh (from 0.76) from 10.157.20.54:59675 at 2023-01-01 07:00:00
+⚡ SPIKE #3: 4.86 kWh (from 0.59) from 10.157.20.54:59675 at 2023-01-01 11:00:00
+⚡ SPIKE #4: 2.81 kWh (from 1.40) from 10.157.20.54:59675 at 2023-01-02 03:00:00
+⚡ SPIKE #5: 3.23 kWh (from 0.71) from 10.157.20.54:59675 at 2023-01-02 06:00:00
+⚡ SPIKE #6: 4.77 kWh (from 0.79) from 10.157.20.54:59675 at 2023-01-02 09:00:00
+⚡ SPIKE #7: 3.58 kWh (from 0.94) from 10.157.20.54:59675 at 2023-01-02 14:00:00
+⚡ SPIKE #8: 2.73 kWh (from 1.05) from 10.157.20.54:59675 at 2023-01-02 17:00:00
+⚡ SPIKE #9: 4.59 kWh (from 0.65) from 10.157.20.54:59675 at 2023-01-02 19:00:00
+⚡ SPIKE #10: 3.48 kWh (from 1.66) from 10.157.20.54:59675 at 2023-01-02 21:00:00

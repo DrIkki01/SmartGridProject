@@ -25,51 +25,61 @@ public class UDPServerHandler {
     private StringBuilder violationLog = new StringBuilder();
     private StringBuilder spikeLog = new StringBuilder();
     
-    public UDPServerHandler(JTextArea logArea) {
-        this.logArea = logArea;
-        try {
-            socket = new DatagramSocket(PORT);
-            running = true;
-        } catch (SocketException e) {
-            appendLog("Failed to start UDP Server: " + e.getMessage());
-        }
-    }
-    
-    public void start() {
-        appendLog("UDP Server listening on port " + PORT);
-        appendLog("Threshold: > " + ENERGY_THRESHOLD + " kWh");
-        appendLog("----------------------------------------\n");
-        
-        while (running) {
+        public UDPServerHandler(JTextArea logArea) {
+            this.logArea = logArea;
             try {
+                socket = new DatagramSocket(PORT);
+                running = true;
+            } catch (SocketException e) {
+                appendLog("Failed to start UDP Server: " + e.getMessage());
+            }
+        }
+    
+        public void start() {
+            appendLog("UDP Server listening on port " + PORT);
+            appendLog("Threshold: > " + ENERGY_THRESHOLD + " kWh");
+            appendLog("----------------------------------------\n");
+
+            while (running) {
+                try {
                 byte[] buffer = new byte[65535];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 socket.receive(packet);
-                
+
+                // Get sender info
+                InetAddress senderIP = packet.getAddress();
+                int senderPort = packet.getPort();
+
                 String received = new String(packet.getData(), 0, packet.getLength());
-                
+
                 if (received.equals("END_OF_STREAM")) {
                     printFinalReport();
                     running = false;
                     break;
                 }
-                
-                processRecord(received);
-                
-            } catch (IOException e) {
-                appendLog("Error: " + e.getMessage());
+
+                // Pass sender info to processRecord
+                processRecord(received, senderIP, senderPort);
+
+                } catch (IOException e) {
+                    appendLog("Error: " + e.getMessage());
+                }
             }
-        }
         close();
-    }
+        }
     
-    public boolean isRunning() {
-        return running;
-    }
+        public boolean isRunning() {
+            return running;
+        }
     
-    private void processRecord(String data) {
+        private void processRecord(String data, InetAddress senderIP, int senderPort) {
         totalRecords++;
-        
+    
+        String senderInfo = senderIP.getHostAddress() + ":" + senderPort;
+    
+        // Show who sent the data in GUI
+        appendLog("📡 Data received from: " + senderInfo);
+    
         String[] parts = data.split("\\|");
         if (parts.length >= 6) {
             String timestamp = parts[0];
@@ -78,41 +88,42 @@ public class UDPServerHandler {
             double humidity = Double.parseDouble(parts[3]);
             String weather = parts[4];
             double efficiency = Double.parseDouble(parts[5]);
-            
+        
             // Update running statistics
             runningSum += power;
             runningAverage = runningSum / totalRecords;
-            
-            // Track highest power
+        
+            // Track highest power with sender info
             if (power > highestPower) {
                 highestPower = power;
                 highestTimestamp = timestamp;
-                appendLog("🏆 NEW HIGHEST POWER: " + String.format("%.2f", power) + " kWh at " + timestamp);
+                appendLog("🏆 NEW HIGHEST POWER: " + String.format("%.2f", power) + " kWh from " + senderInfo + " at " + timestamp);
             }
-            
-            // Threshold violation
+        
+            // Threshold violation with sender IP
             if (power > ENERGY_THRESHOLD) {
                 thresholdViolations++;
-                String violation = String.format("⚠️ VIOLATION #%d: %.2f kWh at %s", 
-                    thresholdViolations, power, timestamp);
+                String violation = String.format("⚠️ VIOLATION #%d: %.2f kWh from %s at %s", 
+                    thresholdViolations, power, senderInfo, timestamp);
                 violationLog.append(violation).append("\n");
                 appendLog(violation);
             }
-            
-            // Spike detection
+        
+            // Spike detection with sender IP
             if (totalRecords > 1 && power > lastPower * 2.0) {
                 spikeCount++;
-                String spike = String.format("⚡ SPIKE #%d: %.2f kWh (from %.2f kWh) at %s",
-                    spikeCount, power, lastPower, timestamp);
+                String spike = String.format("⚡ SPIKE #%d: %.2f kWh (from %.2f) from %s at %s",
+                    spikeCount, power, lastPower, senderInfo, timestamp);
                 spikeLog.append(spike).append("\n");
                 appendLog(spike);
             }
-            
+        
             lastPower = power;
-            
-            // Live update display
+        
+            // Live update display in GUI
             appendLog(String.format("\n--- LIVE UPDATE #%d ---", totalRecords));
             appendLog(String.format("Time: %s | Power: %.2f kWh", timestamp, power));
+            appendLog(String.format("Sender: %s", senderInfo));
             appendLog(String.format("Temp: %.1f°C | Humidity: %.1f%% | Weather: %s", temperature, humidity, weather));
             appendLog(String.format("Running Avg: %.2f kWh | Violations: %d | Spikes: %d", 
                 runningAverage, thresholdViolations, spikeCount));

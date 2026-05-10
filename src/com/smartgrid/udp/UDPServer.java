@@ -5,12 +5,11 @@ import java.net.*;
 
 public class UDPServer {
     private static final int PORT = 9876;
-    private static final double ENERGY_THRESHOLD = 4.0; // kWh threshold
+    private static final double ENERGY_THRESHOLD = 4.0;
     
     private DatagramSocket socket;
     private boolean running;
     
-    // Analysis counters
     private int totalRecords = 0;
     private int thresholdViolations = 0;
     private int spikeCount = 0;
@@ -40,17 +39,20 @@ public class UDPServer {
                 byte[] buffer = new byte[65535];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 socket.receive(packet);
-                
+        
+                InetAddress senderIP = packet.getAddress();
+                int senderPort = packet.getPort();
+        
                 String received = new String(packet.getData(), 0, packet.getLength());
-                
+        
                 if (received.equals("END_OF_STREAM")) {
                     printFinalReport();
                     running = false;
                     break;
                 }
-                
-                processRecord(received);
-                
+        
+                processRecord(received, senderIP, senderPort);
+        
             } catch (IOException e) {
                 System.err.println("Error: " + e.getMessage());
             }
@@ -58,10 +60,11 @@ public class UDPServer {
         close();
     }
     
-    private void processRecord(String data) {
+    private void processRecord(String data, InetAddress senderIP, int senderPort) {
         totalRecords++;
-        
-        // Parse: timestamp|power|temp|humidity|weather|efficiency
+    
+        System.out.println("📡 Data received from: " + senderIP.getHostAddress() + ":" + senderPort);
+    
         String[] parts = data.split("\\|");
         if (parts.length >= 6) {
             String timestamp = parts[0];
@@ -70,55 +73,41 @@ public class UDPServer {
             double humidity = Double.parseDouble(parts[3]);
             String weather = parts[4];
             double efficiency = Double.parseDouble(parts[5]);
-            
-            // Update running statistics
+        
             runningSum += power;
             runningAverage = runningSum / totalRecords;
-            
-            // Track highest power so far
+        
             if (power > highestPower) {
                 highestPower = power;
                 highestTimestamp = timestamp;
                 System.out.println("🏆 NEW HIGHEST POWER: " + String.format("%.2f", power) + " kWh at " + timestamp);
             }
-            
-            // Analysis 2: Threshold Violation Detection
+        
             if (power > ENERGY_THRESHOLD) {
                 thresholdViolations++;
-                String violation = String.format("[VIOLATION #%d] %.2f kWh at %s (Temp: %.1f°C, Humidity: %.1f%%)",
-                    thresholdViolations, power, timestamp, temperature, humidity);
+                String violation = String.format("⚠️ VIOLATION #%d: %.2f kWh from %s:%d at %s", 
+                    thresholdViolations, power, senderIP.getHostAddress(), senderPort, timestamp);
                 violationLog.append(violation).append("\n");
-                System.out.println("⚠️ " + violation);
+                System.out.println(violation);
             }
-            
-            // Analysis 1: Unusual Spike Detection (jump > 2x from last value)
+        
             if (totalRecords > 1 && power > lastPower * 2.0) {
                 spikeCount++;
-                String spike = String.format("[SPIKE #%d] %.2f kWh (from %.2f kWh) at %s",
-                    spikeCount, power, lastPower, timestamp);
+                String spike = String.format("⚡ SPIKE #%d: %.2f kWh (from %.2f) from %s:%d at %s",
+                    spikeCount, power, lastPower, senderIP.getHostAddress(), senderPort, timestamp);
                 spikeLog.append(spike).append("\n");
-                System.out.println("⚡🔊 " + spike);
+                System.out.println(spike);
             }
-            
+        
             lastPower = power;
-            
-            // Live display update
-            displayLiveUpdate(timestamp, power, temperature, humidity, weather, efficiency);
+        
+            System.out.println("\n--- LIVE UPDATE #" + totalRecords + " ---");
+            System.out.println("Time: " + timestamp + " | Power: " + String.format("%.2f", power) + " kWh");
+            System.out.println("Sender: " + senderIP.getHostAddress() + ":" + senderPort);
+            System.out.println("Temp: " + String.format("%.1f", temperature) + "°C | Humidity: " + String.format("%.1f", humidity) + "% | Weather: " + weather);
+            System.out.println("Running Avg: " + String.format("%.2f", runningAverage) + " kWh | Violations: " + thresholdViolations + " | Spikes: " + spikeCount);
+            System.out.println("----------------------------------------");
         }
-    }
-    
-    private void displayLiveUpdate(String timestamp, double power, double temp, double humidity, String weather, double efficiency) {
-        System.out.println("\n--- LIVE UPDATE #" + totalRecords + " ---");
-        System.out.println("Timestamp: " + timestamp);
-        System.out.println("Power: " + String.format("%.2f", power) + " kWh");
-        System.out.println("Temperature: " + String.format("%.1f", temp) + "°C");
-        System.out.println("Humidity: " + String.format("%.1f", humidity) + "%");
-        System.out.println("Weather: " + weather);
-        System.out.println("Efficiency Score: " + String.format("%.0f", efficiency));
-        System.out.println("Running Avg Power: " + String.format("%.2f", runningAverage) + " kWh");
-        System.out.println("Threshold Violations: " + thresholdViolations);
-        System.out.println("Unusual Spikes: " + spikeCount);
-        System.out.println("----------------------------------------");
     }
     
     private void printFinalReport() {
