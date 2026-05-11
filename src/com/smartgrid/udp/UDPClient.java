@@ -6,6 +6,7 @@ import java.util.*;
 
 public class UDPClient {
     private static final int SERVER_PORT = 9876;
+    private static final int MAX_RECORDS = 50;  // Limit to 50 records for demo
     
     private DatagramSocket socket;
     private InetAddress serverAddress;
@@ -29,6 +30,7 @@ public class UDPClient {
             serverAddress = InetAddress.getByName(serverIP);
             System.out.println("UDP Client started. Sending to " + serverIP + ":" + SERVER_PORT);
             System.out.println("Delay between records: " + delayMs + "ms");
+            System.out.println("Max records to send: " + MAX_RECORDS);
         } catch (Exception e) {
             System.err.println("Failed to start UDP Client: " + e.getMessage());
         }
@@ -44,7 +46,8 @@ public class UDPClient {
             System.out.println("Starting data validation and live feed simulation...");
             System.out.println("----------------------------------------");
             
-            while ((line = br.readLine()) != null) {
+            // Stop after MAX_RECORDS
+            while ((line = br.readLine()) != null && recordCount < MAX_RECORDS) {
                 totalRowsRead++;
                 
                 if (line.trim().isEmpty()) {
@@ -96,7 +99,7 @@ public class UDPClient {
                     seenTimestamps.add(timestamp);
                     recordCount++;
                     
-                    System.out.println("[VALIDATION] [" + recordCount + "] " + timestamp + " | Home: " + homeId + 
+                    System.out.println("[VALIDATION] [" + recordCount + "/" + MAX_RECORDS + "] " + timestamp + " | Home: " + homeId + 
                                      " | Energy: " + totalEnergy + " kWh - VALID");
                     
                     Thread.sleep(delayMs);
@@ -115,7 +118,7 @@ public class UDPClient {
             // Print validation summary
             System.out.println("\n========== DATA VALIDATION SUMMARY ==========");
             System.out.println("Total rows read: " + totalRowsRead);
-            System.out.println("Valid records sent: " + validRecords);
+            System.out.println("Valid records sent: " + validRecords + " (max: " + MAX_RECORDS + ")");
             System.out.println("Duplicate records (skipped): " + duplicateRecords);
             System.out.println("Malformed records (skipped): " + malformedRecords);
             System.out.println("Out of range records (skipped): " + outOfRangeRecords);
@@ -146,6 +149,11 @@ public class UDPClient {
             socket.close();
             System.out.println("UDP Client closed.");
         }
+    }
+    
+    // Method to change max records (optional)
+    public void setMaxRecords(int max) {
+        // This would require rework, but for now just change MAX_RECORDS constant
     }
     
     public static void main(String[] args) {
