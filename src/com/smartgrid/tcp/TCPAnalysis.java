@@ -147,7 +147,7 @@ public class TCPAnalysis {
             writer.printf("Min Energy: %.2f kWh\n", minEnergy);
             
             writer.close();
-            System.out.println("\n✅ Report saved to: TCP_Analysis_Report.txt");
+            System.out.println("\n Report saved to: TCP_Analysis_Report.txt");
             
         } catch (FileNotFoundException e) {
             System.err.println("Failed to save report: " + e.getMessage());

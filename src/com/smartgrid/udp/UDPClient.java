@@ -2,6 +2,7 @@ package com.smartgrid.udp;
 
 import java.io.*;
 import java.net.*;
+import java.util.*;
 
 public class UDPClient {
     private static final int SERVER_PORT = 9876;
@@ -11,10 +12,18 @@ public class UDPClient {
     private String serverIP;
     private int delayMs;
     
-    // Constructor with IP and delay parameters (for GUI)
+    // Validation counters
+    private int totalRowsRead = 0;
+    private int validRecords = 0;
+    private int duplicateRecords = 0;
+    private int malformedRecords = 0;
+    private int outOfRangeRecords = 0;
+    private Set<String> seenTimestamps;
+    
     public UDPClient(String serverIP, int delayMs) {
         this.serverIP = serverIP;
         this.delayMs = delayMs;
+        this.seenTimestamps = new HashSet<>();
         try {
             socket = new DatagramSocket();
             serverAddress = InetAddress.getByName(serverIP);
@@ -25,54 +34,98 @@ public class UDPClient {
         }
     }
     
-    // Default constructor for backward compatibility
-    public UDPClient() {
-        this("localhost", 1000);
-    }
-    
     public void sendLiveFeed(String csvFilePath) {
         try (BufferedReader br = new BufferedReader(new FileReader(csvFilePath))) {
             String line;
             int recordCount = 0;
-            int maxRecords = 50; // Limit for testing, remove or increase for full dataset
             
-            // Read and skip header
             String header = br.readLine();
             System.out.println("CSV Header: " + header);
-            System.out.println("Starting live feed simulation...");
-            System.out.println("Sending records every " + delayMs + "ms");
+            System.out.println("Starting data validation and live feed simulation...");
             System.out.println("----------------------------------------");
             
-            while ((line = br.readLine()) != null && recordCount < maxRecords) {
-                if (line.trim().isEmpty()) continue;
+            while ((line = br.readLine()) != null) {
+                totalRowsRead++;
+                
+                if (line.trim().isEmpty()) {
+                    System.out.println("[VALIDATION] Line " + totalRowsRead + ": Empty line - SKIPPED");
+                    malformedRecords++;
+                    continue;
+                }
                 
                 String[] parts = line.split(",");
-                if (parts.length >= 20) {
-                    String timestamp = parts[0];
-                    String powerConsumption = parts[1];
-                    String temperature = parts[9];
-                    String humidity = parts[10];
-                    String weather = parts[11];
-                    String efficiency = parts[19];
+                
+                // Check for malformed (need at least 10 columns for our data)
+                if (parts.length < 10) {
+                    System.out.println("[VALIDATION] Line " + totalRowsRead + ": Malformed - only " + parts.length + " columns - SKIPPED");
+                    malformedRecords++;
+                    continue;
+                }
+                
+                try {
+                    String homeId = parts[0];
+                    String timestamp = parts[1];
+                    String totalEnergy = parts[8];
+                    String temperature = parts[2];
+                    String humidity = parts[3];
+                    String motion = parts[9];
                     
+                    // Check for duplicate timestamp
+                    if (seenTimestamps.contains(timestamp)) {
+                        System.out.println("[VALIDATION] Line " + totalRowsRead + ": Duplicate timestamp " + timestamp + " - SKIPPED");
+                        duplicateRecords++;
+                        continue;
+                    }
+                    
+                    double energyValue = Double.parseDouble(totalEnergy);
+                    
+                    // Range checking (0-50 kWh is normal range for this dataset)
+                    if (energyValue < 0 || energyValue > 50) {
+                        System.out.println("[VALIDATION] Line " + totalRowsRead + ": Energy out of range (0-50 kWh): " + energyValue + " kWh - SKIPPED");
+                        outOfRangeRecords++;
+                        continue;
+                    }
+                    
+                    // If all validation passes, send the record
+                    String defaultEfficiency = "50";
                     String message = String.format("%s|%s|%s|%s|%s|%s",
-                        timestamp, powerConsumption, temperature, humidity, weather, efficiency);
+                        timestamp, totalEnergy, temperature, humidity, motion, defaultEfficiency);
                     
                     sendMessage(message);
+                    validRecords++;
+                    seenTimestamps.add(timestamp);
                     recordCount++;
                     
-                    System.out.println("[" + recordCount + "] " + timestamp + " | Power: " + powerConsumption + " kWh");
+                    System.out.println("[VALIDATION] [" + recordCount + "] " + timestamp + " | Home: " + homeId + 
+                                     " | Energy: " + totalEnergy + " kWh - VALID");
                     
                     Thread.sleep(delayMs);
+                    
+                } catch (NumberFormatException e) {
+                    System.out.println("[VALIDATION] Line " + totalRowsRead + ": Invalid number format - " + e.getMessage() + " - SKIPPED");
+                    malformedRecords++;
+                } catch (Exception e) {
+                    System.out.println("[VALIDATION] Line " + totalRowsRead + ": Parse error - " + e.getMessage() + " - SKIPPED");
+                    malformedRecords++;
                 }
             }
             
             sendMessage("END_OF_STREAM");
-            System.out.println("\n----------------------------------------");
-            System.out.println("Live feed complete! " + recordCount + " records sent.");
+            
+            // Print validation summary
+            System.out.println("\n========== DATA VALIDATION SUMMARY ==========");
+            System.out.println("Total rows read: " + totalRowsRead);
+            System.out.println("Valid records sent: " + validRecords);
+            System.out.println("Duplicate records (skipped): " + duplicateRecords);
+            System.out.println("Malformed records (skipped): " + malformedRecords);
+            System.out.println("Out of range records (skipped): " + outOfRangeRecords);
+            System.out.println("=============================================\n");
+            
+            System.out.println("Live feed complete! " + validRecords + " records sent.");
             
         } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());
+            e.printStackTrace();
         } finally {
             close();
         }
@@ -96,7 +149,7 @@ public class UDPClient {
     }
     
     public static void main(String[] args) {
-        UDPClient client = new UDPClient();
-        client.sendLiveFeed("data/iiot_smart_grid_dataset.csv");
+        UDPClient client = new UDPClient("localhost", 1000);
+        client.sendLiveFeed("data/smart_home_energy_usage_dataset.csv");
     }
 }

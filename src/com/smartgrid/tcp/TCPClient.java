@@ -12,9 +12,17 @@ public class TCPClient {
     private ObjectOutputStream out;
     private String serverIP;
     
-    // Constructor with IP parameter (for GUI)
+    // Validation counters
+    private int totalRowsRead = 0;
+    private int validRecords = 0;
+    private int duplicateRecords = 0;
+    private int malformedRecords = 0;
+    private int outOfRangeRecords = 0;
+    private Set<String> seenTimestamps;
+    
     public TCPClient(String serverIP) {
         this.serverIP = serverIP;
+        this.seenTimestamps = new HashSet<>();
         try {
             socket = new Socket(serverIP, SERVER_PORT);
             out = new ObjectOutputStream(socket.getOutputStream());
@@ -24,7 +32,6 @@ public class TCPClient {
         }
     }
     
-    // Default constructor for backward compatibility
     public TCPClient() {
         this("localhost");
     }
@@ -42,62 +49,104 @@ public class TCPClient {
                 header = header.substring(1);
             }
             System.out.println("Header: " + header);
-            
-            System.out.println("Reading CSV file...");
-            int lineNumber = 0;
-            int successCount = 0;
+            System.out.println("Starting data validation and batch transfer...");
+            System.out.println("----------------------------------------");
             
             while ((line = br.readLine()) != null) {
-                lineNumber++;
-                if (line.trim().isEmpty()) continue;
+                totalRowsRead++;
+                
+                if (line.trim().isEmpty()) {
+                    System.out.println("[VALIDATION] Line " + totalRowsRead + ": Empty line - SKIPPED");
+                    malformedRecords++;
+                    continue;
+                }
                 
                 String[] parts = line.split(",");
                 
-                if (parts.length >= 20) {
-                    try {
-                        EnergyRecord record = new EnergyRecord();
-                        
-                        record.setTimestamp(java.time.LocalDateTime.parse(parts[0].replace(" ", "T")));
-                        record.setPowerConsumption(Double.parseDouble(parts[1].trim()));
-                        record.setVoltage(Double.parseDouble(parts[2].trim()));
-                        record.setCurrent(Double.parseDouble(parts[3].trim()));
-                        record.setPowerFactor(Double.parseDouble(parts[4].trim()));
-                        record.setGridFrequency(Double.parseDouble(parts[5].trim()));
-                        record.setReactivePower(Double.parseDouble(parts[6].trim()));
-                        record.setActivePower(Double.parseDouble(parts[7].trim()));
-                        record.setDemandResponseEvent((int)Double.parseDouble(parts[8].trim()));
-                        record.setTemperature(Double.parseDouble(parts[9].trim()));
-                        record.setHumidity(Double.parseDouble(parts[10].trim()));
-                        record.setWeatherCondition(parts[11].trim());
-                        record.setSolarPowerGeneration(Double.parseDouble(parts[12].trim()));
-                        record.setWindPowerGeneration(Double.parseDouble(parts[13].trim()));
-                        record.setPreviousDayConsumption(Double.parseDouble(parts[14].trim()));
-                        record.setPeakLoadHour((int)Double.parseDouble(parts[15].trim()));
-                        record.setEnergySourceType((int)Double.parseDouble(parts[16].trim()));
-                        record.setUserType((int)Double.parseDouble(parts[17].trim()));
-                        record.setNormalizedConsumption(Double.parseDouble(parts[18].trim()));
-                        record.setEnergyEfficiencyScore((int)Double.parseDouble(parts[19].trim()));
-                        
-                        records.add(record);
-                        successCount++;
-                        
-                    } catch (NumberFormatException e) {
-                        // Silent skip for parsing errors
+                // Check for malformed (not enough columns)
+                if (parts.length < 20) {
+                    System.out.println("[VALIDATION] Line " + totalRowsRead + ": Malformed - only " + parts.length + " columns (expected 20) - SKIPPED");
+                    malformedRecords++;
+                    continue;
+                }
+                
+                try {
+                    String timestamp = parts[0];
+                    
+                    // Check for duplicate timestamp
+                    if (seenTimestamps.contains(timestamp)) {
+                        System.out.println("[VALIDATION] Line " + totalRowsRead + ": Duplicate timestamp " + timestamp + " - SKIPPED");
+                        duplicateRecords++;
+                        continue;
                     }
+                    
+                    double powerConsumption = Double.parseDouble(parts[1].trim());
+                    
+                    // Range checking (0-10 kWh is normal range for this dataset)
+                    if (powerConsumption < 0 || powerConsumption > 10) {
+                        System.out.println("[VALIDATION] Line " + totalRowsRead + ": Power out of range (0-10 kWh): " + powerConsumption + " kWh - SKIPPED");
+                        outOfRangeRecords++;
+                        continue;
+                    }
+                    
+                    // If all validation passes, create record
+                    EnergyRecord record = new EnergyRecord();
+                    record.setTimestamp(java.time.LocalDateTime.parse(parts[0].replace(" ", "T")));
+                    record.setPowerConsumption(powerConsumption);
+                    record.setVoltage(Double.parseDouble(parts[2].trim()));
+                    record.setCurrent(Double.parseDouble(parts[3].trim()));
+                    record.setPowerFactor(Double.parseDouble(parts[4].trim()));
+                    record.setGridFrequency(Double.parseDouble(parts[5].trim()));
+                    record.setReactivePower(Double.parseDouble(parts[6].trim()));
+                    record.setActivePower(Double.parseDouble(parts[7].trim()));
+                    record.setDemandResponseEvent((int)Double.parseDouble(parts[8].trim()));
+                    record.setTemperature(Double.parseDouble(parts[9].trim()));
+                    record.setHumidity(Double.parseDouble(parts[10].trim()));
+                    record.setWeatherCondition(parts[11].trim());
+                    record.setSolarPowerGeneration(Double.parseDouble(parts[12].trim()));
+                    record.setWindPowerGeneration(Double.parseDouble(parts[13].trim()));
+                    record.setPreviousDayConsumption(Double.parseDouble(parts[14].trim()));
+                    record.setPeakLoadHour((int)Double.parseDouble(parts[15].trim()));
+                    record.setEnergySourceType((int)Double.parseDouble(parts[16].trim()));
+                    record.setUserType((int)Double.parseDouble(parts[17].trim()));
+                    record.setNormalizedConsumption(Double.parseDouble(parts[18].trim()));
+                    record.setEnergyEfficiencyScore((int)Double.parseDouble(parts[19].trim()));
+                    
+                    records.add(record);
+                    validRecords++;
+                    seenTimestamps.add(timestamp);
+                    
+                    if (validRecords % 1000 == 0) {
+                        System.out.println("[VALIDATION] Processed " + validRecords + " valid records so far...");
+                    }
+                    
+                } catch (NumberFormatException e) {
+                    System.out.println("[VALIDATION] Line " + totalRowsRead + ": Invalid number format - " + e.getMessage() + " - SKIPPED");
+                    malformedRecords++;
+                } catch (Exception e) {
+                    System.out.println("[VALIDATION] Line " + totalRowsRead + ": Parse error - " + e.getMessage() + " - SKIPPED");
+                    malformedRecords++;
                 }
             }
             br.close();
             
-            System.out.println("\nRecords loaded: " + records.size());
+            // Print validation summary
+            System.out.println("\n========== DATA VALIDATION SUMMARY ==========");
+            System.out.println("Total rows read: " + totalRowsRead);
+            System.out.println("Valid records: " + validRecords);
+            System.out.println("Duplicate records (skipped): " + duplicateRecords);
+            System.out.println("Malformed records (skipped): " + malformedRecords);
+            System.out.println("Out of range records (skipped): " + outOfRangeRecords);
+            System.out.println("=============================================\n");
             
-            if (records.isEmpty()) {
-                System.err.println("No records loaded! Check CSV format.");
+            if (validRecords == 0) {
+                System.err.println("No valid records to send!");
                 return;
             }
             
-            System.out.println("\nSending " + records.size() + " records to server...");
+            System.out.println("Sending " + validRecords + " valid records to server...");
             
-            out.writeInt(records.size());
+            out.writeInt(validRecords);
             out.flush();
             
             int sent = 0;
@@ -106,14 +155,15 @@ public class TCPClient {
                 out.flush();
                 sent++;
                 if (sent % 1000 == 0) {
-                    System.out.println("Sent " + sent + "/" + records.size() + " records...");
+                    System.out.println("Sent " + sent + "/" + validRecords + " records...");
                 }
             }
             
             out.writeObject("END_OF_BATCH");
             out.flush();
             
-            System.out.println("Batch transfer complete! " + records.size() + " records sent.");
+            System.out.println("\nBatch transfer complete! " + validRecords + " records sent.");
+            System.out.println("Validation stats: " + duplicateRecords + " duplicates, " + malformedRecords + " malformed, " + outOfRangeRecords + " out of range");
             
         } catch (Exception e) {
             System.err.println("Error sending batch: " + e.getMessage());
@@ -122,6 +172,11 @@ public class TCPClient {
             close();
         }
     }
+    
+    public int getValidRecords() { return validRecords; }
+    public int getDuplicateRecords() { return duplicateRecords; }
+    public int getMalformedRecords() { return malformedRecords; }
+    public int getOutOfRangeRecords() { return outOfRangeRecords; }
     
     private void close() {
         try {
