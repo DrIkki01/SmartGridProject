@@ -154,7 +154,7 @@ public class TCPClient {
                 out.writeObject(record);
                 out.flush();
                 sent++;
-                if (sent % 1000 == 0) {
+                if (sent % 1000 == 0 || sent == validRecords) {
                     System.out.println("Sent " + sent + "/" + validRecords + " records...");
                 }
             }

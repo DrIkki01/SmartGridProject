@@ -36,7 +36,7 @@ public class TCPServer {
                 EnergyRecord record = (EnergyRecord) in.readObject();
                 receivedRecords.add(record);
                 
-                if ((i + 1) % 1000 == 0) {
+                if ((i + 1) % 1000 == 0 || (i + 1) == totalRecords) {
                     System.out.println("Received " + (i + 1) + "/" + totalRecords + " records...");
                 }
             }
